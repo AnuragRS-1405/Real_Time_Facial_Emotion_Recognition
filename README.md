@@ -1,58 +1,79 @@
 # Real-Time Facial Emotion Recognition
-### Deep Learning System Powered by ANN & CNN with FastAPI Backend
+### Deep Learning System Powered by Deep ANN & 4-Stage Hierarchical CNN with FastAPI & Glassmorphism UI
 
 [![Python](https://img.shields.io/badge/Python-3.10%2B-blue.svg)](https://www.python.org/)
 [![TensorFlow](https://img.shields.io/badge/TensorFlow-2.15%2B-orange.svg)](https://tensorflow.org/)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.110%2B-009688.svg)](https://fastapi.tiangolo.com/)
 [![OpenCV](https://img.shields.io/badge/OpenCV-4.x-green.svg)](https://opencv.org/)
-[![License](https://img.shields.io/badge/License-MIT-purple.svg)]()
+[![License](https://img.shields.io/badge/License-MIT-purple.svg)](LICENSE)
 
 ---
 
-## 📋 What This Project Is All About
+## 📋 Project Overview
 
-This project is an **end-to-end Affective Computing & Deep Learning system** designed to detect and classify human facial expressions in real time from static images, uploaded videos, and live webcam feeds.
+This project is an **end-to-end Affective Computing & Deep Learning system** engineered to detect and classify human facial expressions in real time from static images, uploaded files, and live webcam feeds.
 
-The system detects **7 canonical human emotions**:
+The system classifies human emotional states into **7 canonical emotions**:
 
 | Emotion | Label | Visual Features & Morphological Markers |
 |:---|:---:|:---|
-| 😠 **Angry** | `angry` | Knitted eyebrows, lowered brow, intense stare, tightened lips |
+| 😠 **Angry** | `angry` | Knitted eyebrows, lowered brow furrow, intense stare, tightened lips |
 | 🤢 **Disgust** | `disgust` | Wrinkled nose bridge, raised upper lip, narrowed eyes |
-| 😨 **Fear** | `fear` | Widened eye aperture, raised inner eyebrows, slightly parted mouth |
-| 😊 **Happy** | `happy` | Elevated cheek zygomatic muscles, broad smile, crinkled eye corners |
+| 😨 **Fear** | `fear` | Widened eye aperture, raised inner eyebrows, parted lips |
+| 😊 **Happy** | `happy` | Elevated zygomatic cheek muscles, broad smile, crinkled eye corners |
 | 😐 **Neutral** | `neutral` | Relaxed facial musculature, horizontal lip line, resting gaze |
-| 😢 **Sad** | `sad` | Downturned mouth corners, inner eyebrows pulled upwards |
-| 😲 **Surprise** | `surprise` | Vertically dropped jaw, wide circular eye aperture, arched brows |
+| 😢 **Sad** | `sad` | Downturned mouth corners, inner eyebrows pulled upwards, drooping eyelids |
+| 😲 **Surprise** | `surprise` | Vertically dropped jaw, wide circular eye aperture, arched eyebrows |
 
-### 🔬 Core Scientific & Engineering Highlights
+---
 
-1. **Dual-Model Architectural Comparison:**
-   - **Baseline ANN (Multi-Layer Perceptron):** A dense neural network compared with the CNN while 2D spatial locality is discarded.
-   - **Primary CNN:** Uses a compact four-block convolutional network with training-only image augmentation and dropout. Test metrics are measured from actual predictions and depend on the data and training run.
-2. **Real-Time Computer Vision Pipeline:**
-   - Uses OpenCV's **Haar Feature-Based Cascade Classifier** (`haarcascade_frontalface_default.xml`) to detect and isolate facial regions in $\mathcal{O}(1)$ time via integral images.
-   - Deterministic preprocessing converts faces to single-channel Grayscale at $64 \times 64$ resolution with $[0.0, 1.0]$ normalization.
-   - Inference latency is measured during evaluation and depends on the hardware.
-3. **Softmax Probabilities:**
-   - Returns the model's softmax probabilities for all 7 classes.
-4. **Production-Ready Full-Stack Serving:**
-   - High-throughput asynchronous **FastAPI** backend with CORS middleware and auto-generated OpenAPI documentation.
-   - Interactive, responsive **Dark Glassmorphism UI** with three dedicated viewports:
-     - **Home / Prediction Studio:** Live image upload, webcam detection, model toggling (ANN vs. CNN), confidence scores, and probability meters.
-     - **Visual Analytics:** Dataset class distribution, training curves, confusion matrices, and sample predictions.
-     - **Model Evaluation:** Side-by-side performance comparison tables and detailed classification reports.
-5. **Comprehensive Technical Report:**
-   - Contains a complete 24-page publication-quality engineering report compiled to **`report.pdf`** and **`report.html`**.
+## 🔬 Core Scientific & Engineering Highlights
+
+1. **Balanced Dataset & MD5 Deduplication Pipeline:**
+   - Ingests up to **5,000 images per emotion class** (up to **35,000 images total**) from `Image_data/` to eliminate severe class imbalance.
+   - Computes **MD5 hash digests** on every image to remove exact duplicates, ensuring zero data leakage between training, validation, and test splits.
+   - Applies **CLAHE (Contrast Limited Adaptive Histogram Equalization)** with `clipLimit=2.0` and `tileGridSize=(8, 8)` to normalize ambient lighting and contrast across faces.
+   - Deterministic resizing to $64 \times 64$ single-channel grayscale with float32 scaling into $[0.0, 1.0]$.
+   - Stratified dataset partitioning: **80% Training**, **10% Validation**, and **10% Held-Out Testing** (`random_state=42`).
+
+2. **Dual-Model Architectural Comparison:**
+   - **Deep Baseline ANN (Multi-Layer Perceptron):**
+     - Flattens the $64 \times 64$ face into a 4,096-dimensional 1D vector.
+     - Adapts a Keras `Normalization` layer over training features.
+     - Dense hierarchy: $512 \rightarrow 256 \rightarrow 128 \rightarrow 7$ with He-normal weight initialization, Batch Normalization, Dropout ($0.40 \rightarrow 0.30 \rightarrow 0.20$), and $L_2$ weight regularization ($1\times 10^{-4}$).
+     - Benchmarks performance when 2D spatial locality is discarded.
+   - **Improved 4-Stage Hierarchical CNN:**
+     - Online data augmentation: `RandomFlip("horizontal")`, `RandomRotation(0.08)`, `RandomZoom(0.10)`, and `RandomTranslation(0.08, 0.08)`.
+     - 4 hierarchical convolutional blocks: $32 \rightarrow 64 \rightarrow 128 \rightarrow 256 \rightarrow 512$ filters with $3 \times 3$ receptive fields, He-normal initialization, Batch Normalization, and staged Dropout ($0.10 \rightarrow 0.15 \rightarrow 0.20$).
+     - Preserves spatial geometry into a $4 \times 4$ layout (avoiding premature global pooling) into a regularized dense head (Dense 256 $\rightarrow$ BatchNorm $\rightarrow$ ReLU $\rightarrow$ Dropout 0.30 $\rightarrow$ Dense 7 Softmax).
+     - Trained with **Categorical Cross-Entropy with Label Smoothing ($0.1$)** to avoid overconfident misclassifications, `ReduceLROnPlateau` (decay factor 0.5), and `EarlyStopping` (restoring best validation weights).
+
+3. **Inference with Flip Test-Time Augmentation (TTA):**
+   - At test time and in production serving (`app.py`), the CNN evaluates both the original face and its horizontal mirror:
+     $$\hat{P} = \frac{P(\mathbf{x}) + P(\mathbf{x}_{\text{flipped}})}{2}$$
+   - Ensembling the two views cancels pose asymmetries and boosts generalization on real-world faces.
+
+4. **Real-Time Computer Vision & Face Detection:**
+   - Uses OpenCV's **Haar Feature-Based Cascade Classifier** (`haarcascade_frontalface_default.xml`) to detect and crop primary face ROIs in $\mathcal{O}(1)$ time via integral images.
+   - Automatic fallback to full-frame preprocessing if the face is already cropped or partially obscured.
+
+5. **Production FastAPI Backend with Auto-Artifact Refreshing:**
+   - Asynchronous FastAPI server (`app.py`) with CORS middleware and OpenAPI Swagger/ReDoc.
+   - Features `refresh_artifacts()` to automatically load newly trained `.keras` models, `metrics.json`, and `history.json` on-demand without requiring a server reboot.
+
+6. **Responsive Dark Glassmorphism Frontend:**
+   - **Home / Prediction Studio (`/`):** Live image upload, drag-and-drop, real-time webcam stream prediction, model toggle (ANN vs. CNN), and 7-class probability meters.
+   - **Visual Analytics (`/analysis`):** Dataset class distributions, training curves, confusion matrices, and qualitative sample predictions.
+   - **Model Evaluation (`/evaluation`):** Side-by-side metric comparison cards (Accuracy, Precision, Recall, F1, Latency), per-class F1 canvas charts, and architectural conclusions.
 
 ---
 
 ## ⚡ Execution Commands & Running the Project
 
-Follow these step-by-step instructions to run the application on your machine.
+Follow these steps to launch the system locally.
 
 ### Step 1: Open Your Terminal
-Open PowerShell or Command Prompt (CMD) in the project root directory:
+Navigate to the project root directory:
 ```bash
 cd "c:\Users\Anurag Rajendra\OneDrive\Pictures\PROJECTS\REAL TIME FACIAL EMOTION RECOGNITION"
 ```
@@ -61,13 +82,13 @@ cd "c:\Users\Anurag Rajendra\OneDrive\Pictures\PROJECTS\REAL TIME FACIAL EMOTION
 
 ### Step 2: Activate the Virtual Environment
 
-Your virtual environment is already installed in the `venv/` directory. Activate it based on your shell:
+The project includes a configured virtual environment inside `venv/`. Activate it based on your shell:
 
 #### 🔹 Windows PowerShell:
 ```powershell
 .\venv\Scripts\Activate.ps1
 ```
-> **Tip for PowerShell Users:** If you see an error saying *`Execution of scripts is disabled on this system`*, run this command once in your PowerShell window:
+> **PowerShell Execution Policy Tip:** If you encounter `Execution of scripts is disabled on this system`, run:
 > ```powershell
 > Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
 > .\venv\Scripts\Activate.ps1
@@ -78,35 +99,30 @@ Your virtual environment is already installed in the `venv/` directory. Activate
 venv\Scripts\activate.bat
 ```
 
-#### 🔹 macOS / Linux (if applicable):
+#### 🔹 macOS / Linux:
 ```bash
 source venv/bin/activate
 ```
 
-*(Once activated, you will see `(venv)` prefixed in your terminal prompt).*
+*(Once activated, `(venv)` will precede your terminal prompt).*
 
 ---
 
-### Step 3: Run the Web Server (Uvicorn / Localhost)
+### Step 3: Run the FastAPI Web Server
 
-You have two simple ways to launch the server:
+You can run the web application using any of the following methods:
 
-#### Option A: Direct Uvicorn Command (Recommended for Development)
+#### Option A: Direct Uvicorn Command (Recommended)
 ```bash
 uvicorn app:app --reload --host 127.0.0.1 --port 8000
 ```
-- `--reload`: Automatically restarts the server whenever code changes are saved.
-- `--host 127.0.0.1`: Binds the server to localhost.
-- `--port 8000`: Runs on port 8000.
 
-#### Option B: Run via Python Script
+#### Option B: Direct Python Execution
 ```bash
 python app.py
 ```
-*(This triggers the `uvicorn.run(...)` entrypoint defined at the bottom of `app.py`).*
 
-#### Option C: One-Line Direct Execution (Without Manual Activation)
-If you do not want to activate the venv first, run directly via the venv executable:
+#### Option C: One-Line Direct Launch (Without Manual Activation)
 ```powershell
 .\venv\Scripts\uvicorn.exe app:app --reload --host 127.0.0.1 --port 8000
 ```
@@ -121,74 +137,89 @@ Once the terminal outputs `Application startup complete` and `Uvicorn running on
 |:---|:---|:---|
 | 🏠 **Web Application (UI)** | **[http://localhost:8000](http://localhost:8000)** | Prediction Studio, Analytics & Evaluation dashboards |
 | 📊 **Analytics Dashboard** | **[http://localhost:8000/analysis](http://localhost:8000/analysis)** | Training curves, dataset charts & confusion matrices |
-| ⚖️ **Model Evaluation** | **[http://localhost:8000/evaluation](http://localhost:8000/evaluation)** | Measured test metrics & comparisons |
-| 📖 **Interactive Swagger Docs** | **[http://localhost:8000/docs](http://localhost:8000/docs)** | Test the REST API endpoints directly in your browser |
-| 📑 **ReDoc Documentation** | **[http://localhost:8000/redoc](http://localhost:8000/redoc)** | Clean, formal OpenAPI specification viewer |
-| 🩺 **System Health Status** | **[http://localhost:8000/status](http://localhost:8000/status)** | Model load verification & status JSON |
+| ⚖️ **Model Evaluation** | **[http://localhost:8000/evaluation](http://localhost:8000/evaluation)** | Measured test metrics, per-class F1 & comparison tables |
+| 📖 **Interactive Swagger Docs** | **[http://localhost:8000/docs](http://localhost:8000/docs)** | Test the REST API endpoints directly via interactive UI |
+| 📑 **ReDoc Documentation** | **[http://localhost:8000/redoc](http://localhost:8000/redoc)** | Clean, formal OpenAPI specification documentation |
+| 🩺 **System Health Status** | **[http://localhost:8000/status](http://localhost:8000/status)** | Model load verification & metadata JSON |
 
 ---
 
-## 🛠️ Other Useful Commands
+## 📓 Notebook Pipeline: `facial_emotion.ipynb`
 
-### 1. Re-Train the Neural Network Models
-To re-run the entire data cleaning, stratified train/validation/test split, and ANN + CNN training pipeline, run the consolidated Jupyter Notebook:
-```bash
-# Open and run all cells in VS Code or JupyterLab:
-facial_emotion.ipynb
-```
-Or execute it directly from the terminal via nbconvert:
+All data preprocessing, deduplication, exploratory data analysis, and neural network training are structured into **18 transparent steps** within [`facial_emotion.ipynb`](facial_emotion.ipynb):
+
+1. **Step 1: Import Packages & Set Seeds:** Imports TensorFlow, Keras, OpenCV, Seaborn, and configures frontend chart styling (`style_chart_for_frontend`).
+2. **Step 2: Folders & Class Names:** Initializes paths, classes, and constants ($64 \times 64$, batch size 64).
+3. **Step 3: Balanced Image Search:** Collects up to 5,000 files per emotion class from `Image_data/` (up to 35,000 images).
+4. **Step 4: Preprocessing & Deduplication:** Grayscale conversion, $64 \times 64$ resize, MD5 hash duplicate elimination, CLAHE illumination balancing, and normalization to $[0.0, 1.0]$.
+5. **Step 5: Stratified Data Splitting:** 80% train, 10% validation, 10% held-out test splits.
+6. **Step 6: Class Distribution Charts:** Saves `training_images_per_emotion.png` and `total_dataset_images_per_emotion.png` to `outputs/`.
+7. **Step 7: Build Baseline ANN:** 4,096-input MLP with adapted normalization, $512 \rightarrow 256 \rightarrow 128$ dense blocks, BatchNorm, and Dropout.
+8. **Step 8: Train Baseline ANN:** Trains for up to 40 epochs with `ReduceLROnPlateau` and `EarlyStopping`.
+9. **Step 9: Build Improved 4-Stage CNN:** Hierarchical $32 \rightarrow 64 \rightarrow 128 \rightarrow 256 \rightarrow 512$ ConvNet with online augmentation, spatial flattening, and label smoothing.
+10. **Step 10: Train Improved CNN:** Trains for up to 60 epochs with `ReduceLROnPlateau` and `EarlyStopping` restoring best validation weights.
+11. **Step 11: Prediction & Flip TTA:** Evaluates ANN and CNN with Flip Test-Time Augmentation on untouched test images.
+12. **Step 12: Test-Set Evaluation:** Generates full classification reports (Accuracy, Precision, Recall, F1).
+13. **Step 13: Export Trained Models:** Serializes `ann_model.keras` and `cnn_model.keras` to `models/`.
+14. **Step 14: Save Training Charts:** Exports `ann_history.png` and `cnn_history.png` to `outputs/`.
+15. **Step 15: Save Confusion Matrices:** Exports `ann_confusion_matrix.png` and `cnn_confusion_matrix.png` to `outputs/`.
+16. **Step 16: Comparative Visualizations:** Saves `ann_vs_cnn_comparison.png` and `training_time_comparison.png` to `outputs/`.
+17. **Step 17: Visual Sample Predictions:** Exports `sample_predictions.png` showcasing qualitative predictions for each emotion.
+18. **Step 18: Save Production Metadata:** Exports `metrics.json`, `history.json`, and `preprocessing_config.pkl` to `models/`.
+
+To re-run the notebook from the terminal:
 ```bash
 jupyter nbconvert --to notebook --execute facial_emotion.ipynb
 ```
-- **Inputs:** Raw images inside `Image_data/`
-- **Pipeline:** Up to 5,000 images per class (35,000 total), grayscale/CLAHE preprocessing, stratified 80:10:10 split, ANN baseline and augmented CNN.
-- **Outputs:** Saves trained models to `models/` (`ann_model.keras`, `cnn_model.keras`) and visual charts to `outputs/`.
-
-### 2. Generate the Technical Report (PDF & HTML)
-To regenerate the 24-page comprehensive project report (`report.pdf` and `report.html`):
-```bash
-python build_full_report.py
-```
-
-### 3. Install / Verify Dependencies
-If you need to install or update dependencies:
-```bash
-pip install -r requirements.txt
-```
 
 ---
 
-## 📊 Model Evaluation: ANN vs. CNN
+## 🏗️ Neural Network Architectures
 
-The notebook measures both models on the same stratified, held-out test split, using up to 5,000 images per emotion (35,000 total). Both models train for exactly 40 epochs each. Step 6 visualizes the per-emotion training-image counts and the total available dataset-image counts. An 85% CNN accuracy is a goal, not a guarantee; reported accuracy, precision, recall, F1-score, training time, and inference latency come from the actual training and evaluation run. Results are written to `models/metrics.json` and displayed in the evaluation dashboard.
-
----
-
-## 🏗️ Model Architectures
-
-### ANN Baseline Architecture
+### 1. Deep Baseline ANN Architecture
 ```
-Input (4,096)
-  ├── Feature normalization (adapted on training data)
-  ├── Dense(512) → BatchNorm → ReLU → Dropout(0.40)
-  ├── Dense(256) → BatchNorm → ReLU → Dropout(0.30)
-  ├── Dense(128) → BatchNorm → ReLU → Dropout(0.20)
-  └── Dense(7, Softmax)
-```
-
-### CNN Architecture
-```
-Input (64 × 64 × 1 Grayscale Face Tensor)
-  ├── Random flip, rotation and zoom during training
-  ├── 2 × [Conv2D(32) → BatchNorm → ReLU] → MaxPool
-  ├── 2 × [Conv2D(64) → BatchNorm → ReLU] → MaxPool
-  ├── 2 × [Conv2D(128) → BatchNorm → ReLU] → MaxPool
-  ├── Global Average Pooling
-  ├── Dropout(0.40) → Dense(128) → Dropout(0.30)
-  └── Dense(7, Softmax)
+Input Face Vector (4,096-dimensional flattened 64 × 64 pixels)
+  │
+  ├── Keras Normalization Layer (Adapted on Training Data)
+  │
+  ├── Block 1: Dense(512, HeNormal, L2=1e-4) ──> BatchNorm ──> ReLU ──> Dropout(0.40)
+  │
+  ├── Block 2: Dense(256, HeNormal, L2=1e-4) ──> BatchNorm ──> ReLU ──> Dropout(0.30)
+  │
+  ├── Block 3: Dense(128, HeNormal, L2=1e-4) ──> BatchNorm ──> ReLU ──> Dropout(0.20)
+  │
+  └── Output Layer: Dense(7, Softmax) ──> [Angry, Disgust, Fear, Happy, Neutral, Sad, Surprise]
 ```
 
-CNN training always runs all 40 epochs, with no early stopping. An 85–90% accuracy is a target, not a guaranteed result; report the measured validation and test accuracy for each run.
+### 2. Improved 4-Stage Hierarchical CNN Architecture
+```
+Input Face Tensor (64 × 64 × 1 Grayscale)
+  │
+  ├── Online Data Augmentation (RandomFlip, RandomRotation ±8°, RandomZoom ±10%, RandomTranslation ±8%)
+  │
+  ├── Block 1 (64×64 → 32×32):
+  │     Conv2D(32, 3×3, Same, HeNormal) ──> BatchNorm ──> ReLU
+  │     Conv2D(64, 3×3, Same, HeNormal) ──> BatchNorm ──> ReLU ──> MaxPool(2×2) ──> Dropout(0.10)
+  │
+  ├── Block 2 (32×32 → 16×16):
+  │     Conv2D(128, 3×3, Same, HeNormal) ──> BatchNorm ──> ReLU
+  │     Conv2D(128, 3×3, Same, HeNormal) ──> BatchNorm ──> ReLU ──> MaxPool(2×2) ──> Dropout(0.15)
+  │
+  ├── Block 3 (16×16 → 8×8):
+  │     Conv2D(256, 3×3, Same, HeNormal) ──> BatchNorm ──> ReLU
+  │     Conv2D(256, 3×3, Same, HeNormal) ──> BatchNorm ──> ReLU ──> MaxPool(2×2) ──> Dropout(0.20)
+  │
+  ├── Block 4 (8×8 → 4×4):
+  │     Conv2D(512, 3×3, Same, HeNormal) ──> BatchNorm ──> ReLU ──> MaxPool(2×2)
+  │
+  ├── Spatial Feature Preservation (4×4 spatial layout maintained):
+  │     Flatten() ──> Dropout(0.40)
+  │
+  ├── Regularized Dense Head:
+  │     Dense(256, HeNormal) ──> BatchNorm ──> ReLU ──> Dropout(0.30)
+  │
+  └── Output Layer: Dense(7, Softmax) ──> Categorical Cross-Entropy (Label Smoothing = 0.1)
+```
 
 ---
 
@@ -196,56 +227,50 @@ CNN training always runs all 40 epochs, with no early stopping. An 85–90% accu
 
 ```
 REAL TIME FACIAL EMOTION RECOGNITION/
-├── Image_data/                     # Dataset (7 emotion class folders, ~49.8K images)
-│   ├── angry/                      # 5,920 images
-│   ├── disgust/                    # 5,920 images
-│   ├── fear/                       # 5,920 images
-│   ├── happy/                      # 11,398 images
-│   ├── neutral/                    # 8,166 images
-│   ├── sad/                        # 6,535 images
-│   └── surprise/                   # 5,920 images
+├── Image_data/                             # Dataset (7 emotion folders, ~49.8K raw images)
+│   ├── angry/                              # Angry facial images
+│   ├── disgust/                            # Disgust facial images
+│   ├── fear/                               # Fear facial images
+│   ├── happy/                              # Happy facial images
+│   ├── neutral/                            # Neutral facial images
+│   ├── sad/                                # Sad facial images
+│   └── surprise/                           # Surprise facial images
 │
-├── models/                         # Serialized model binaries & metadata
-│   ├── ann_model.keras             # Trained ANN (native Keras format)
-│   ├── cnn_model.keras             # Trained CNN (native Keras format)
-│   ├── ann_model.pkl               # ANN metadata wrapper
-│   ├── cnn_model.pkl               # CNN metadata wrapper
-│   ├── preprocessing_config.pkl    # Preprocessing & label mapping config
-│   ├── metrics.json                # Measured test evaluation metrics
-│   └── history.json                # Epoch-by-epoch loss & accuracy history
+├── models/                                 # Serialized model weights & production metadata
+│   ├── ann_model.keras                     # Trained Baseline ANN (native Keras format)
+│   ├── cnn_model.keras                     # Trained Improved CNN (native Keras format)
+│   ├── preprocessing_config.pkl            # Preprocessing, label mapping & normalization metadata
+│   ├── metrics.json                        # Measured test-set evaluation metrics
+│   └── history.json                        # Epoch-by-epoch loss & accuracy history
 │
-├── outputs/                        # High-resolution generated charts & UI screenshots
-│   ├── training_images_per_emotion.png       # Training images used per emotion
-│   ├── total_dataset_images_per_emotion.png  # Total available images per emotion
-│   ├── ann_history.png             # ANN accuracy and loss curves
-│   ├── cnn_history.png             # CNN accuracy and loss curves
-│   ├── ann_confusion_matrix.png    # ANN confusion matrix
-│   ├── cnn_confusion_matrix.png    # CNN confusion matrix
-│   ├── ann_vs_cnn_comparison.png   # Performance metric bar chart
-│   ├── training_time_comparison.png# Wall-clock training duration chart
-│   ├── sample_predictions.png      # Visual sample predictions
-│   ├── ui_screenshot_home.png      # Prediction studio UI capture
-│   ├── ui_screenshot_analysis.png  # Analytics dashboard UI capture
-│   └── ui_screenshot_evaluation.png# Model evaluation UI capture
+├── outputs/                                # Visual analytics charts & UI captures
+│   ├── training_images_per_emotion.png     # Step 6: Training images used per emotion
+│   ├── total_dataset_images_per_emotion.png# Step 6: Total available images per emotion
+│   ├── ann_history.png                     # Step 14: ANN training/validation accuracy & loss curves
+│   ├── cnn_history.png                     # Step 14: CNN training/validation accuracy & loss curves
+│   ├── ann_confusion_matrix.png            # Step 15: ANN confusion matrix heatmap
+│   ├── cnn_confusion_matrix.png            # Step 15: CNN confusion matrix heatmap
+│   ├── ann_vs_cnn_comparison.png           # Step 16: Performance metric comparison bar chart
+│   ├── training_time_comparison.png        # Step 16: Wall-clock training duration chart
+│   ├── sample_predictions.png              # Step 17: Qualitative test sample predictions
+│   ├── ui_screenshot_home.png              # Home viewport capture
+│   ├── ui_screenshot_analysis.png          # Visual analytics dashboard capture
+│   └── ui_screenshot_evaluation.png        # Model evaluation dashboard capture
 │
-├── templates/                      # HTML5 templates (Jinja2)
-│   ├── index.html                  # Home & live prediction interface
-│   ├── analysis.html               # Visual analytics dashboard
-│   └── evaluation.html             # Model evaluation dashboard
+├── templates/                              # Jinja2 HTML5 front-end templates
+│   ├── index.html                          # Prediction Studio & live detection
+│   ├── analysis.html                       # Visual analytics dashboard
+│   └── evaluation.html                     # Model comparison & performance metrics dashboard
 │
-├── static/                         # Static web assets
-│   ├── css/style.css               # Dark glassmorphism styling
-│   └── js/script.js                # Frontend async prediction logic
+├── static/                                 # Static assets
+│   ├── css/style.css                       # Premium dark glassmorphism styling
+│   └── js/script.js                        # Client-side async prediction & Canvas charting logic
 │
-├── venv/                           # Virtual environment
-├── app.py                          # FastAPI backend application
-├── facial_emotion.ipynb            # Consolidated notebook (data cleaning, training & evaluation)
-├── build_full_report.py            # Generates report.html and compiles report.pdf
-├── report.pdf                      # Comprehensive 24-page project report (PDF)
-├── report.html                     # Standalone HTML version of the report
-├── facial_emotion.ipynb            # Jupyter notebook exploration
-├── requirements.txt                # Python package dependencies
-└── README.md                       # Complete project documentation
+├── app.py                                  # FastAPI asynchronous REST backend
+├── facial_emotion.ipynb                    # 18-step consolidated research & training notebook
+├── build_full_report.py                    # Compiles report.html and generates report.pdf
+├── requirements.txt                        # Python dependencies
+└── README.md                               # Project documentation
 ```
 
 ---
@@ -254,23 +279,22 @@ REAL TIME FACIAL EMOTION RECOGNITION/
 
 | Method | Endpoint | Description |
 |:---:|:---|:---|
-| `GET` | `/` | Renders Home & Live Prediction Studio |
-| `GET` | `/analysis` | Renders Visual Analytics Dashboard |
-| `GET` | `/evaluation` | Renders Model Evaluation Dashboard |
-| `POST` | `/predict/image?model=CNN` | Predicts emotion from uploaded image file |
-| `POST` | `/predict/video?model=CNN` | Processes video frames for continuous emotion detection |
-| `GET` | `/metrics` | Returns stored ANN & CNN test evaluation JSON metrics |
-| `GET` | `/history` | Returns epoch-by-epoch training/validation history |
-| `GET` | `/analysis/data` | Returns all analytics data and plot image paths |
-| `GET` | `/status` | Returns model loading status and class mapping metadata |
+| `GET` | `/` | Serves the Home & Live Prediction Studio UI |
+| `GET` | `/analysis` | Serves the Visual Analytics Dashboard UI |
+| `GET` | `/evaluation` | Serves the Model Evaluation & Benchmarking UI |
+| `POST` | `/predict/image?model=CNN` | Classifies emotion from uploaded face image using ANN or CNN (with Flip TTA) |
+| `GET` | `/metrics` | Returns stored test-set JSON evaluation metrics |
+| `GET` | `/history` | Returns epoch-by-epoch training and validation metrics |
+| `GET` | `/analysis/data` | Returns all analytics metadata, class lists, and plot image paths |
+| `GET` | `/status` | Returns system health, model load status, and preprocessing metadata |
 
-### Sample API Request (cURL):
+### Sample Inference Request (cURL):
 ```bash
 curl -X POST "http://127.0.0.1:8000/predict/image?model=CNN" \
-     -F "file=@face_sample.jpg"
+     -F "file=@sample_face.jpg"
 ```
 
-### Sample API JSON Response:
+### Sample Inference JSON Response:
 ```json
 {
   "predicted_emotion": "Happy",
@@ -284,7 +308,7 @@ curl -X POST "http://127.0.0.1:8000/predict/image?model=CNN" \
     "Sad": 0.0089,
     "Surprise": 0.0061
   },
-  "inference_ms": 1.92,
+  "inference_ms": 2.45,
   "face_detected": true,
   "model_used": "CNN"
 }
@@ -294,27 +318,30 @@ curl -X POST "http://127.0.0.1:8000/predict/image?model=CNN" \
 
 ## ❓ Frequently Asked Questions (FAQ) & Troubleshooting
 
-### Q: What if PowerShell displays a script execution error when activating the venv?
-Run this command in PowerShell to temporarily permit script execution for your session:
+### Q1: What if PowerShell displays a script execution policy error?
+Run this command in your PowerShell window to permit local script execution:
 ```powershell
 Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
 .\venv\Scripts\Activate.ps1
 ```
 
-### Q: What if Port 8000 is already in use?
-You can start Uvicorn on another port (such as `8080`):
+### Q2: What if Port 8000 is already in use by another service?
+Launch Uvicorn on an alternate port (such as `8080`):
 ```bash
 uvicorn app:app --reload --port 8080
 ```
 Then open `http://localhost:8080` in your browser.
 
-### Q: Can I run inference directly from my webcam?
-Yes! Click **"Start Camera"** on the Home page (`http://localhost:8000`). The frontend captures frames at configured intervals and displays real-time emotion predictions and confidence scores.
+### Q3: Do I need to restart `app.py` after re-running `facial_emotion.ipynb`?
+No. The FastAPI backend includes a dynamic `refresh_artifacts()` routine that automatically detects and reloads `ann_model.keras`, `cnn_model.keras`, `metrics.json`, and `history.json` on the next incoming request without needing a manual server restart.
+
+### Q4: How does Flip Test-Time Augmentation (TTA) work in inference?
+When `model=CNN` is selected, `app.py` evaluates both the cropped face $\mathbf{x}$ and its horizontal mirror $\mathbf{x}_{\text{flipped}}$. The two softmax probability distributions are averaged before identifying the argmax emotion. This eliminates unilateral expression bias (e.g., asymmetric half-smiles).
 
 ---
 
 ## 📜 License & Credits
 
-Developed as a Deep Learning & Computer Vision project utilizing **TensorFlow**, **OpenCV**, and **FastAPI**.
-- Dataset: 7-Class Facial Emotion Dataset (`Image_data`)
-- Documentation Deliverable: [report.pdf](report.pdf)
+Developed as an Affective Computing & Computer Vision project utilizing **TensorFlow**, **OpenCV**, and **FastAPI**.
+- **Dataset:** 7-Class Facial Emotion Dataset (`Image_data/`)
+- **License:** [MIT License](LICENSE)
