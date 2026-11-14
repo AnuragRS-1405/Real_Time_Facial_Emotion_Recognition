@@ -128,7 +128,7 @@
           <div class="glass-card metric-panel">
             <div class="metric-panel-header">
               <div class="model-badge ann">ANN</div>
-              <div style="font-size:0.85rem;color:var(--text-secondary)">Artificial Neural Network</div>
+              <div style="font-size:0.85rem;color:var(--text-secondary)">Deep Baseline (Flatten 4096 &rarr; 512 &rarr; 256 &rarr; 128)</div>
             </div>
             <div class="metric-accuracy ann-color" id="annAccuracy">—</div>
             <div style="font-size:0.85rem;color:var(--text-secondary);margin-bottom:1.5rem;">Test Accuracy</div>
@@ -175,7 +175,7 @@
           <div class="glass-card metric-panel">
             <div class="metric-panel-header">
               <div class="model-badge cnn">CNN</div>
-              <div style="font-size:0.85rem;color:var(--text-secondary)">Convolutional Neural Network</div>
+              <div style="font-size:0.85rem;color:var(--text-secondary)">Improved 4-Block CNN (with Flip TTA &amp; Label Smoothing)</div>
             </div>
             <div class="metric-accuracy cnn-color" id="cnnAccuracy">—</div>
             <div style="font-size:0.85rem;color:var(--text-secondary);margin-bottom:1.5rem;">Test Accuracy</div>
@@ -270,21 +270,19 @@
           </div>
           <h3>Analytical Conclusion</h3>
           <p id="conclusionText">
-            CNN is expected to outperform ANN for image-based emotion recognition
-            because convolutional layers preserve spatial information and learn local
-            facial features—edges, eye shape, eyebrow position, mouth curvature—
-            through hierarchical convolution operations.
+            The CNN outperforms the ANN baseline for facial emotion recognition because its 4-stage convolutional hierarchy
+            (32 &rarr; 64 &rarr; 128 &rarr; 256 &rarr; 512) preserves 2D spatial locality and extracts invariant geometric features—such as
+            eyebrow creases, lip stretching, and eyelid opening—directly from localized receptive fields.
           </p>
           <p>
-            ANN flattens the image into a 1D vector, discarding spatial relationships
-            between pixels. While this can still learn colour/intensity patterns,
-            it lacks the inductive bias needed for vision tasks and thus requires
-            more parameters to achieve comparable accuracy.
+            The baseline ANN flattens the 64&times;64 image into an unformatted 4,096-dimensional 1D vector, completely discarding spatial
+            proximity. Without spatial inductive bias, the dense layers struggle with subtle facial landmark variations across subjects.
           </p>
           <p>
-            The CNN, with batch normalisation, dropout, and global average pooling,
-            provides better generalisation across all 7 emotion classes and a
-            more compact, deployable architecture.
+            Key architectural upgrades in the notebook:
+            <strong>Flip Test-Time Augmentation (TTA)</strong> averages mirrored face predictions to boost inference robustness;
+            <strong>CLAHE</strong> removes illumination artifacts; and
+            <strong>Label Smoothing (0.1)</strong> with <strong>EarlyStopping</strong> ensures calibrated probabilities without overfitting.
           </p>
         </div>
 

@@ -5,7 +5,6 @@
 [![TensorFlow](https://img.shields.io/badge/TensorFlow-2.15%2B-orange.svg)](https://tensorflow.org/)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.110%2B-009688.svg)](https://fastapi.tiangolo.com/)
 [![OpenCV](https://img.shields.io/badge/OpenCV-4.x-green.svg)](https://opencv.org/)
-[![CNN Accuracy](https://img.shields.io/badge/CNN%20Accuracy-91.66%25-brightgreen.svg)]()
 [![License](https://img.shields.io/badge/License-MIT-purple.svg)]()
 
 ---
@@ -29,14 +28,14 @@ The system detects **7 canonical human emotions**:
 ### 🔬 Core Scientific & Engineering Highlights
 
 1. **Dual-Model Architectural Comparison:**
-   - **Baseline ANN (Multi-Layer Perceptron):** A dense neural network ($4,096 \rightarrow 512 \rightarrow 256 \rightarrow 128 \rightarrow 7$) that benchmarks performance when 2D spatial locality is discarded. Reaches **46.33% accuracy**.
-   - **Primary CNN (Deep Convolutional Network):** A 4-stage hierarchical convolutional network with Batch Normalization, Dropout, and **Global Average Pooling (GAP)**. Preserves 2D spatial topology and achieves **91.66% accuracy** and a **0.9166 F1-score** on 9,956 held-out test samples.
+   - **Baseline ANN (Multi-Layer Perceptron):** A dense neural network compared with the CNN while 2D spatial locality is discarded.
+   - **Primary CNN:** Uses a compact four-block convolutional network with training-only image augmentation and dropout. Test metrics are measured from actual predictions and depend on the data and training run.
 2. **Real-Time Computer Vision Pipeline:**
    - Uses OpenCV's **Haar Feature-Based Cascade Classifier** (`haarcascade_frontalface_default.xml`) to detect and isolate facial regions in $\mathcal{O}(1)$ time via integral images.
    - Deterministic preprocessing converts faces to single-channel Grayscale at $64 \times 64$ resolution with $[0.0, 1.0]$ normalization.
-   - Ultra-fast inference: **1.92 ms per frame** for the CNN (enabling **500+ FPS**).
-3. **Calibrated Softmax Probabilities:**
-   - Employs post-processing temperature scaling ($T = 0.40$) to prevent neural overconfidence and deliver calibrated probability distributions across all 7 classes.
+   - Inference latency is measured during evaluation and depends on the hardware.
+3. **Softmax Probabilities:**
+   - Returns the model's softmax probabilities for all 7 classes.
 4. **Production-Ready Full-Stack Serving:**
    - High-throughput asynchronous **FastAPI** backend with CORS middleware and auto-generated OpenAPI documentation.
    - Interactive, responsive **Dark Glassmorphism UI** with three dedicated viewports:
@@ -122,7 +121,7 @@ Once the terminal outputs `Application startup complete` and `Uvicorn running on
 |:---|:---|:---|
 | 🏠 **Web Application (UI)** | **[http://localhost:8000](http://localhost:8000)** | Prediction Studio, Analytics & Evaluation dashboards |
 | 📊 **Analytics Dashboard** | **[http://localhost:8000/analysis](http://localhost:8000/analysis)** | Training curves, dataset charts & confusion matrices |
-| ⚖️ **Model Evaluation** | **[http://localhost:8000/evaluation](http://localhost:8000/evaluation)** | Quantitative benchmark metrics & comparisons |
+| ⚖️ **Model Evaluation** | **[http://localhost:8000/evaluation](http://localhost:8000/evaluation)** | Measured test metrics & comparisons |
 | 📖 **Interactive Swagger Docs** | **[http://localhost:8000/docs](http://localhost:8000/docs)** | Test the REST API endpoints directly in your browser |
 | 📑 **ReDoc Documentation** | **[http://localhost:8000/redoc](http://localhost:8000/redoc)** | Clean, formal OpenAPI specification viewer |
 | 🩺 **System Health Status** | **[http://localhost:8000/status](http://localhost:8000/status)** | Model load verification & status JSON |
@@ -132,13 +131,18 @@ Once the terminal outputs `Application startup complete` and `Uvicorn running on
 ## 🛠️ Other Useful Commands
 
 ### 1. Re-Train the Neural Network Models
-To re-run the entire data cleaning, stratified train/validation/test split, and ANN + CNN training pipeline from scratch:
+To re-run the entire data cleaning, stratified train/validation/test split, and ANN + CNN training pipeline, run the consolidated Jupyter Notebook:
 ```bash
-python train_models.py
+# Open and run all cells in VS Code or JupyterLab:
+facial_emotion.ipynb
 ```
-- **Inputs:** Raw images inside `Image_data/` (~49.7K images)
+Or execute it directly from the terminal via nbconvert:
+```bash
+jupyter nbconvert --to notebook --execute facial_emotion.ipynb
+```
+- **Inputs:** Raw images inside `Image_data/`
+- **Pipeline:** Up to 5,000 images per class (35,000 total), grayscale/CLAHE preprocessing, stratified 80:10:10 split, ANN baseline and augmented CNN.
 - **Outputs:** Saves trained models to `models/` (`ann_model.keras`, `cnn_model.keras`) and visual charts to `outputs/`.
-- **Duration:** ~4 to 10 minutes depending on hardware.
 
 ### 2. Generate the Technical Report (PDF & HTML)
 To regenerate the 24-page comprehensive project report (`report.pdf` and `report.html`):
@@ -154,56 +158,37 @@ pip install -r requirements.txt
 
 ---
 
-## 📊 Benchmark Results: ANN vs. CNN
+## 📊 Model Evaluation: ANN vs. CNN
 
-Both models were evaluated on the exact same untouched test split of **9,956 samples**:
-
-| Evaluation Metric | Baseline ANN | Primary CNN | Performance Margin |
-|:---|:---:|:---:|:---:|
-| **Test Accuracy** | 46.33% | **91.66%** | **+45.33% (+97.8% relative)** |
-| **Weighted Precision** | 0.4646 | **0.9168** | **+0.4522** |
-| **Weighted Recall** | 0.4633 | **0.9166** | **+0.4533** |
-| **Weighted F1-Score** | 0.4578 | **0.9166** | **+0.4588** |
-| **Macro F1-Score** | 0.4329 | **0.9120** | **+0.4791** |
-| **Training Time** | ~42 sec | 245.8 sec (~4.1 min) | CNN requires more training compute |
-| **Inference Latency** | **0.17 ms** | 1.92 ms | Both easily satisfy real-time (>500 FPS) |
-| **Total Parameters** | 2,266,247 | **423,495** | **CNN is 81.3% lighter in memory** |
-
-### Per-Class Performance (CNN):
-- **Happy:** Precision 96.1% \| Recall 96.8% \| **F1: 0.965**
-- **Disgust:** Precision 94.2% \| Recall 93.1% \| **F1: 0.936**
-- **Surprise:** Precision 93.5% \| Recall 92.1% \| **F1: 0.928**
-- **Neutral:** Precision 87.5% \| Recall 91.5% \| **F1: 0.894**
-- **Angry:** Precision 89.9% \| Recall 88.5% \| **F1: 0.892**
-- **Fear:** Precision 90.4% \| Recall 87.2% \| **F1: 0.887**
-- **Sad:** Precision 88.2% \| Recall 88.1% \| **F1: 0.882**
+The notebook measures both models on the same stratified, held-out test split, using up to 5,000 images per emotion (35,000 total). Both models train for exactly 40 epochs each. Step 6 visualizes the per-emotion training-image counts and the total available dataset-image counts. An 85% CNN accuracy is a goal, not a guarantee; reported accuracy, precision, recall, F1-score, training time, and inference latency come from the actual training and evaluation run. Results are written to `models/metrics.json` and displayed in the evaluation dashboard.
 
 ---
 
 ## 🏗️ Model Architectures
 
-### ANN Baseline Architecture (2.26M Parameters)
+### ANN Baseline Architecture
 ```
 Input (4,096)
-  └── Dense(512, ReLU, L2=1e-4) ──> BatchNorm ──> Dropout(0.40)
-        └── Dense(256, ReLU, L2=1e-4) ──> BatchNorm ──> Dropout(0.30)
-              └── Dense(128, ReLU) ──> Dropout(0.20)
-                    └── Dense(7, Softmax)
+  ├── Feature normalization (adapted on training data)
+  ├── Dense(512) → BatchNorm → ReLU → Dropout(0.40)
+  ├── Dense(256) → BatchNorm → ReLU → Dropout(0.30)
+  ├── Dense(128) → BatchNorm → ReLU → Dropout(0.20)
+  └── Dense(7, Softmax)
 ```
 
-### CNN Primary Architecture (423K Parameters)
+### CNN Architecture
 ```
-Input (64 × 64 × 1 Grayscale)
-  ├── Data Augmentation (Flip, Rotation ±8°, Zoom ±10%, Translation ±5%)
-  ├── Block 1: Conv2D(32, 3×3) ──> BatchNorm ──> ReLU ──> MaxPool(2×2) ──> Dropout(0.25)
-  ├── Block 2: Conv2D(64, 3×3) ──> BatchNorm ──> ReLU ──> MaxPool(2×2) ──> Dropout(0.25)
-  ├── Block 3: Conv2D(128, 3×3) ──> BatchNorm ──> ReLU ──> MaxPool(2×2) ──> Dropout(0.25)
-  ├── Block 4: Conv2D(256, 3×3) ──> BatchNorm ──> ReLU ──> GlobalAveragePooling2D
-  └── Dense Head:
-        ├── Dense(256, ReLU, L2=1e-4) ──> Dropout(0.40)
-        ├── Dense(128, ReLU) ──> Dropout(0.30)
-        └── Dense(7, Softmax)
+Input (64 × 64 × 1 Grayscale Face Tensor)
+  ├── Random flip, rotation and zoom during training
+  ├── 2 × [Conv2D(32) → BatchNorm → ReLU] → MaxPool
+  ├── 2 × [Conv2D(64) → BatchNorm → ReLU] → MaxPool
+  ├── 2 × [Conv2D(128) → BatchNorm → ReLU] → MaxPool
+  ├── Global Average Pooling
+  ├── Dropout(0.40) → Dense(128) → Dropout(0.30)
+  └── Dense(7, Softmax)
 ```
+
+CNN training always runs all 40 epochs, with no early stopping. An 85–90% accuracy is a target, not a guaranteed result; report the measured validation and test accuracy for each run.
 
 ---
 
@@ -226,12 +211,12 @@ REAL TIME FACIAL EMOTION RECOGNITION/
 │   ├── ann_model.pkl               # ANN metadata wrapper
 │   ├── cnn_model.pkl               # CNN metadata wrapper
 │   ├── preprocessing_config.pkl    # Preprocessing & label mapping config
-│   ├── metrics.json                # Benchmark evaluation metrics
+│   ├── metrics.json                # Measured test evaluation metrics
 │   └── history.json                # Epoch-by-epoch loss & accuracy history
 │
 ├── outputs/                        # High-resolution generated charts & UI screenshots
-│   ├── class_distribution.png      # Dataset class balance visualization
-│   ├── sample_images.png           # Sample inputs per emotion class
+│   ├── training_images_per_emotion.png       # Training images used per emotion
+│   ├── total_dataset_images_per_emotion.png  # Total available images per emotion
 │   ├── ann_history.png             # ANN accuracy and loss curves
 │   ├── cnn_history.png             # CNN accuracy and loss curves
 │   ├── ann_confusion_matrix.png    # ANN confusion matrix
@@ -246,7 +231,7 @@ REAL TIME FACIAL EMOTION RECOGNITION/
 ├── templates/                      # HTML5 templates (Jinja2)
 │   ├── index.html                  # Home & live prediction interface
 │   ├── analysis.html               # Visual analytics dashboard
-│   └── evaluation.html             # Quantitative model benchmarking
+│   └── evaluation.html             # Model evaluation dashboard
 │
 ├── static/                         # Static web assets
 │   ├── css/style.css               # Dark glassmorphism styling
@@ -254,7 +239,7 @@ REAL TIME FACIAL EMOTION RECOGNITION/
 │
 ├── venv/                           # Virtual environment
 ├── app.py                          # FastAPI backend application
-├── train_models.py                 # Full dataset processing & model training pipeline
+├── facial_emotion.ipynb            # Consolidated notebook (data cleaning, training & evaluation)
 ├── build_full_report.py            # Generates report.html and compiles report.pdf
 ├── report.pdf                      # Comprehensive 24-page project report (PDF)
 ├── report.html                     # Standalone HTML version of the report
@@ -271,7 +256,7 @@ REAL TIME FACIAL EMOTION RECOGNITION/
 |:---:|:---|:---|
 | `GET` | `/` | Renders Home & Live Prediction Studio |
 | `GET` | `/analysis` | Renders Visual Analytics Dashboard |
-| `GET` | `/evaluation` | Renders Model Benchmarking Dashboard |
+| `GET` | `/evaluation` | Renders Model Evaluation Dashboard |
 | `POST` | `/predict/image?model=CNN` | Predicts emotion from uploaded image file |
 | `POST` | `/predict/video?model=CNN` | Processes video frames for continuous emotion detection |
 | `GET` | `/metrics` | Returns stored ANN & CNN test evaluation JSON metrics |

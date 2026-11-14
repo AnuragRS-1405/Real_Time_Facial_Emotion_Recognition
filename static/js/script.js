@@ -298,14 +298,14 @@ async function initAnalysisPage() {
 
     // Load each plot image
     const plotMap = {
-      'plotDistribution': plots.class_distribution,
+      'plotTrainingImages': plots.training_images_per_emotion,
+      'plotTotalDatasetImages': plots.total_dataset_images_per_emotion,
       'plotAnnHistory': plots.ann_history,
       'plotCnnHistory': plots.cnn_history,
       'plotAnnCm': plots.ann_confusion_matrix,
       'plotCnnCm': plots.cnn_confusion_matrix,
       'plotComparison': plots.ann_vs_cnn,
       'plotSamples': plots.sample_predictions,
-      'plotSampleImgs': plots.sample_images,
       'plotTrainTime': plots.training_time,
     };
     Object.entries(plotMap).forEach(([id, src]) => {
@@ -450,7 +450,7 @@ async function initEvaluationPage() {
     setTimeout(animateBars, 200);
   } catch (err) {
     console.warn('Metrics load failed:', err);
-    showToast('Metrics not available. Run train_models.py first.', 'error');
+    showToast('Metrics not available. Run facial_emotion.ipynb first.', 'error');
   }
 }
 

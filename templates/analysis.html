@@ -55,12 +55,12 @@
       </h2>
       <div class="plot-grid">
         <div class="glass-card plot-card plot-full">
-          <div class="chart-title"><span class="dot"></span> Class Distribution</div>
-          <img class="chart-img" id="plotDistribution" src="/outputs/class_distribution.png" alt="Class Distribution"/>
+          <div class="chart-title"><span class="dot"></span> Training Images Used per Emotion</div>
+          <img class="chart-img" id="plotTrainingImages" src="/outputs/training_images_per_emotion.png" alt="Training images used per emotion"/>
         </div>
         <div class="glass-card plot-card plot-full">
-          <div class="chart-title"><span class="dot"></span> Sample Images per Emotion</div>
-          <img class="chart-img" id="plotSampleImgs" src="/outputs/sample_images.png" alt="Sample Images"/>
+          <div class="chart-title"><span class="dot"></span> Total Dataset Images per Emotion</div>
+          <img class="chart-img" id="plotTotalDatasetImages" src="/outputs/total_dataset_images_per_emotion.png" alt="Total dataset images per emotion"/>
         </div>
       </div>
 
@@ -134,34 +134,35 @@
       <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:1.5rem;margin-bottom:3rem;">
         <div class="glass-card" style="padding:1.5rem;">
           <div style="font-size:1.5rem;margin-bottom:0.75rem;">🧠</div>
-          <h3 style="font-family:'Rajdhani',sans-serif;font-size:1.1rem;margin-bottom:0.5rem;">CNN vs ANN</h3>
+          <h3 style="font-family:'Rajdhani',sans-serif;font-size:1.1rem;margin-bottom:0.5rem;">Spatial Hierarchy vs Flattened Vectors</h3>
           <p style="font-size:0.88rem;color:var(--text-secondary);line-height:1.7;">
-            CNN outperforms ANN because convolutional layers preserve spatial structure,
-            learning local edge, texture, and expression patterns directly from pixels.
+            The 4-stage convolutional hierarchy (32 &rarr; 64 &rarr; 128 &rarr; 256 &rarr; 512) preserves 2D spatial locality,
+            capturing fine facial contours, eye corners, and smile curvature. The baseline ANN flattens 4,096 pixels into a 1D vector,
+            discarding spatial relationships.
           </p>
         </div>
         <div class="glass-card" style="padding:1.5rem;">
           <div style="font-size:1.5rem;margin-bottom:0.75rem;">⚖️</div>
-          <h3 style="font-family:'Rajdhani',sans-serif;font-size:1.1rem;margin-bottom:0.5rem;">Class Imbalance</h3>
+          <h3 style="font-family:'Rajdhani',sans-serif;font-size:1.1rem;margin-bottom:0.5rem;">Balanced Sampling &amp; Deduplication</h3>
           <p style="font-size:0.88rem;color:var(--text-secondary);line-height:1.7;">
-            Happy has significantly more images than Disgust. Class weights and
-            data augmentation help balance training across all 7 emotion classes.
+            Step 3 caps each emotion class at 5,000 images (up to 35,000 total) to prevent dominant class bias. Step 4 computes
+            MD5 hashes to eliminate exact duplicate images and prevent train/test data leakage.
           </p>
         </div>
         <div class="glass-card" style="padding:1.5rem;">
           <div style="font-size:1.5rem;margin-bottom:0.75rem;">📉</div>
-          <h3 style="font-family:'Rajdhani',sans-serif;font-size:1.1rem;margin-bottom:0.5rem;">Overfitting Control</h3>
+          <h3 style="font-family:'Rajdhani',sans-serif;font-size:1.1rem;margin-bottom:0.5rem;">Regularization &amp; Label Smoothing</h3>
           <p style="font-size:0.88rem;color:var(--text-secondary);line-height:1.7;">
-            Dropout, BatchNormalization, L2 regularization, and EarlyStopping
-            with best-weight restoration prevent overfitting on both models.
+            Categorical cross-entropy with 0.1 label smoothing prevents overconfident incorrect predictions. Staged dropout (0.10 &ndash; 0.40),
+            Batch Normalization, L2 penalty, and EarlyStopping ensure solid generalization.
           </p>
         </div>
         <div class="glass-card" style="padding:1.5rem;">
           <div style="font-size:1.5rem;margin-bottom:0.75rem;">🎯</div>
-          <h3 style="font-family:'Rajdhani',sans-serif;font-size:1.1rem;margin-bottom:0.5rem;">Preprocessing Consistency</h3>
+          <h3 style="font-family:'Rajdhani',sans-serif;font-size:1.1rem;margin-bottom:0.5rem;">CLAHE &amp; Flip TTA Inference</h3>
           <p style="font-size:0.88rem;color:var(--text-secondary);line-height:1.7;">
-            Training and inference use identical preprocessing: grayscale,
-            64×64 resize, and [0,1] normalization to ensure reliable real-world predictions.
+            CLAHE (clip limit 2.0, tile 8&times;8) normalizes ambient lighting across faces. At test and prediction time,
+            flip test-time augmentation (TTA) evaluates both normal and horizontally mirrored images to produce calibrated probabilities.
           </p>
         </div>
       </div>

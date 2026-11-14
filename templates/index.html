@@ -42,9 +42,10 @@
             Recognition
           </h1>
           <p class="hero-subtitle">
-            An end-to-end deep learning system that detects 7 distinct human
-            emotions from facial images. Powered by both ANN and high-accuracy CNN
-            (91.7% accuracy)—select your preferred architecture and test your images instantly.
+            An end-to-end deep learning system trained on up to 35,000 balanced facial images
+            with MD5 duplicate removal and CLAHE illumination enhancement. Compare a deep baseline
+            ANN (512 &rarr; 256 &rarr; 128) with an improved 4-stage CNN (32 &rarr; 64 &rarr; 128 &rarr; 256 &rarr; 512)
+            leveraging label smoothing and flip test-time augmentation (TTA).
           </p>
 
           <div class="hero-stats">
@@ -53,12 +54,12 @@
               <div class="stat-label">Emotions</div>
             </div>
             <div class="stat-item">
-              <div class="stat-value">49K+</div>
-              <div class="stat-label">Images</div>
+              <div class="stat-value">35K</div>
+              <div class="stat-label">Balanced Images</div>
             </div>
             <div class="stat-item">
               <div class="stat-value">2</div>
-              <div class="stat-label">Models</div>
+              <div class="stat-label">Deep Architectures</div>
             </div>
           </div>
 
@@ -118,8 +119,8 @@
 
             <!-- Model Selector -->
             <div class="model-selector" style="margin-bottom:1.25rem;">
-              <button class="model-btn" data-model="ANN" id="modelANN">⚡ ANN (46.3% Acc)</button>
-              <button class="model-btn active" data-model="CNN" id="modelCNN">🔬 CNN (91.7% Acc — Recommended)</button>
+              <button class="model-btn" data-model="ANN" id="modelANN">⚡ Deep ANN (512-256-128)</button>
+              <button class="model-btn active" data-model="CNN" id="modelCNN">🔬 Improved CNN (4-Block + Flip TTA)</button>
             </div>
 
             <div class="upload-zone" id="uploadZone">
@@ -183,25 +184,25 @@
           <div class="step-num">2</div>
           <div class="step-icon">🔍</div>
           <div class="step-title">Face Detection</div>
-          <div class="step-desc">Haar Cascade detects and crops the primary face region</div>
+          <div class="step-desc">OpenCV Haar Cascade isolates and crops the primary face bounding box</div>
         </div>
         <div class="glass-card workflow-step fade-in-up">
           <div class="step-num">3</div>
           <div class="step-icon">⚙️</div>
-          <div class="step-title">Preprocessing</div>
-          <div class="step-desc">Resize to 64×64, convert to grayscale, normalize to [0,1]</div>
+          <div class="step-title">CLAHE &amp; Normalization</div>
+          <div class="step-desc">Grayscale conversion, CLAHE contrast balance (clip 2.0), 64&times;64 resize, [0,1] scaling</div>
         </div>
         <div class="glass-card workflow-step fade-in-up">
           <div class="step-num">4</div>
           <div class="step-icon">🧠</div>
-          <div class="step-title">Model Inference</div>
-          <div class="step-desc">ANN or CNN predicts probability for each of 7 emotion classes</div>
+          <div class="step-title">Dual Inference</div>
+          <div class="step-desc">ANN flattened vectors or CNN with Flip Test-Time Augmentation (TTA) averaging mirrored predictions</div>
         </div>
         <div class="glass-card workflow-step fade-in-up">
           <div class="step-num">5</div>
           <div class="step-icon">📊</div>
-          <div class="step-title">Output Result</div>
-          <div class="step-desc">Predicted emotion + confidence score displayed instantly</div>
+          <div class="step-title">7-Class Probability</div>
+          <div class="step-desc">Predicted emotion, confidence percentage, and complete probability breakdown across all 7 emotions</div>
         </div>
       </div>
     </div>

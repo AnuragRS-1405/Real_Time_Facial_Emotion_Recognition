@@ -53,7 +53,7 @@ except FileNotFoundError:
     CLASS_TO_IDX = {c:i for i,c in enumerate(EMOTION_CLASSES)}
     IDX_TO_CLASS = {i:c for c,i in CLASS_TO_IDX.items()}
     NUM_CLASSES  = 7
-    print("  WARNING: preprocessing_config.pkl not found. Run train_models.py first.")
+    print("  WARNING: preprocessing_config.pkl not found. Run facial_emotion.ipynb first.")
 
 # Load Keras models
 ann_model, cnn_model = None, None
@@ -64,7 +64,7 @@ except Exception as e:
     print(f"  ANN model not found: {e}")
 
 try:
-    cnn_model = tf.keras.models.load_model(MODELS_DIR / "cnn_model.keras")
+    cnn_model = tf.keras.models.load_model(MODELS_DIR / "cnn_model.keras", safe_mode=False)
     print("  CNN model loaded.")
 except Exception as e:
     print(f"  CNN model not found: {e}")
@@ -84,17 +84,18 @@ try:
 except FileNotFoundError:
     pass
 
-# Face detector (Haar Cascade - ships with OpenCV)
+# Face detector & CLAHE illumination normalizer
 face_cascade = cv2.CascadeClassifier(
     cv2.data.haarcascades + "haarcascade_frontalface_default.xml")
+clahe_pipeline = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
 
 # ──────────────────────────────────────────────
 # HELPER FUNCTIONS
 # ──────────────────────────────────────────────
 def preprocess_image(img_bytes: bytes) -> np.ndarray:
     """
-    Decode bytes -> detect face -> crop -> resize -> normalise.
-    Returns array of shape (1, H, W, 1) (or (1, H*W*1) is handled per model).
+    Decode bytes -> detect face -> crop -> apply CLAHE -> resize -> normalise.
+    Returns array of shape (H, W, 1) and bool indicating face detected.
     """
     nparr = np.frombuffer(img_bytes, np.uint8)
     img   = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
@@ -113,30 +114,35 @@ def preprocess_image(img_bytes: bytes) -> np.ndarray:
         # Fall back to full image if no face found
         face = gray
 
+    # Apply CLAHE contrast enhancement for illumination invariance
+    face = clahe_pipeline.apply(face)
     face = cv2.resize(face, IMG_SIZE)
     face = face.astype(np.float32) / 255.0
     face = face[..., np.newaxis]          # (H, W, 1)
     return face, len(faces) > 0
 
 def predict_emotion(face: np.ndarray, model_type: str) -> dict:
-    """Run inference and return probabilities + predicted class."""
+    """
+    Run inference and return probabilities + predicted class.
+    Mirrors Step 11 of facial_emotion.ipynb:
+      - ANN: Predict on flattened (1, 4096) face vector.
+      - CNN: Uses Flip Test-Time Augmentation (TTA), averaging original & mirrored face predictions.
+    """
     t0 = time.time()
     if model_type.upper() == "ANN":
         if ann_model is None:
-            raise HTTPException(503, "ANN model not loaded. Run train_models.py first.")
+            raise HTTPException(503, "ANN model not loaded. Run facial_emotion.ipynb first.")
         inp = face.reshape(1, -1)
         probs = ann_model.predict(inp, verbose=0)[0]
     else:
         if cnn_model is None:
-            raise HTTPException(503, "CNN model not loaded. Run train_models.py first.")
-        inp = face[np.newaxis]            # (1, H, W, 1)
-        raw_probs = cnn_model.predict(inp, verbose=0)[0]
-        # Temperature sharpening to calibrate confidence to the 85-95% range
-        # aligned with the high-performance CNN benchmark (91.7% accuracy)
-        T = 0.40
-        log_p = np.log(np.clip(raw_probs, 1e-7, 1.0)) / T
-        exp_p = np.exp(log_p - np.max(log_p))
-        probs = exp_p / np.sum(exp_p)
+            raise HTTPException(503, "CNN model not loaded. Run facial_emotion.ipynb first.")
+        inp = face[np.newaxis]            # (1, 64, 64, 1)
+        # Flip test-time augmentation (TTA) matching Step 11 of facial_emotion.ipynb
+        inp_flipped = inp[:, :, ::-1, :]
+        p1 = cnn_model.predict(inp, verbose=0)[0]
+        p2 = cnn_model.predict(inp_flipped, verbose=0)[0]
+        probs = (p1 + p2) / 2.0
 
     inf_ms = (time.time() - t0) * 1000
     pred_idx = int(np.argmax(probs))
@@ -213,34 +219,68 @@ async def predict_image(
     except ValueError as e:
         raise HTTPException(400, str(e))
 
+def refresh_artifacts():
+    """Reload models and metrics dynamically if created after startup."""
+    global ann_model, cnn_model, metrics_data, history_data, cfg
+    if ann_model is None and (MODELS_DIR / "ann_model.keras").exists():
+        try:
+            ann_model = tf.keras.models.load_model(MODELS_DIR / "ann_model.keras")
+            print("  [Auto-Reload] ANN model loaded.")
+        except Exception as e:
+            print(f"  ANN reload error: {e}")
+
+    if cnn_model is None and (MODELS_DIR / "cnn_model.keras").exists():
+        try:
+            cnn_model = tf.keras.models.load_model(MODELS_DIR / "cnn_model.keras", safe_mode=False)
+            print("  [Auto-Reload] CNN model loaded.")
+        except Exception as e:
+            print(f"  CNN reload error: {e}")
+
+    if not metrics_data and (MODELS_DIR / "metrics.json").exists():
+        try:
+            with open(MODELS_DIR / "metrics.json") as f:
+                metrics_data = json.load(f)
+        except Exception:
+            pass
+
+    if not history_data and (MODELS_DIR / "history.json").exists():
+        try:
+            with open(MODELS_DIR / "history.json") as f:
+                history_data = json.load(f)
+        except Exception:
+            pass
+
 @app.get("/metrics")
 async def get_metrics():
     """Return stored ANN and CNN evaluation metrics."""
+    refresh_artifacts()
     if not metrics_data:
-        raise HTTPException(503, "Metrics not available. Run train_models.py first.")
+        raise HTTPException(503, "Metrics not available. Run facial_emotion.ipynb first.")
     return JSONResponse(metrics_data)
 
 @app.get("/history")
 async def get_history():
     """Return per-epoch training history for charting."""
+    refresh_artifacts()
     if not history_data:
-        raise HTTPException(503, "History not available. Run train_models.py first.")
+        raise HTTPException(503, "History not available. Run facial_emotion.ipynb first.")
     return JSONResponse(history_data)
 
 @app.get("/analysis/data")
 async def analysis_data():
     """Return data needed for the Analysis page."""
+    refresh_artifacts()
     data = {
         "emotion_classes":    EMOTION_CLASSES,
         "plots": {
-            "class_distribution":    "/outputs/class_distribution.png",
+            "training_images_per_emotion": "/outputs/training_images_per_emotion.png",
+            "total_dataset_images_per_emotion": "/outputs/total_dataset_images_per_emotion.png",
             "ann_history":           "/outputs/ann_history.png",
             "cnn_history":           "/outputs/cnn_history.png",
             "ann_confusion_matrix":  "/outputs/ann_confusion_matrix.png",
             "cnn_confusion_matrix":  "/outputs/cnn_confusion_matrix.png",
             "ann_vs_cnn":            "/outputs/ann_vs_cnn_comparison.png",
             "sample_predictions":    "/outputs/sample_predictions.png",
-            "sample_images":         "/outputs/sample_images.png",
             "training_time":         "/outputs/training_time_comparison.png",
         }
     }
@@ -252,9 +292,13 @@ async def analysis_data():
 
 @app.get("/status")
 async def status():
+    refresh_artifacts()
     return {
         "ann_loaded": ann_model is not None,
         "cnn_loaded": cnn_model is not None,
+        "ann_architecture": "Deep ANN Baseline (Flatten 4096 -> 512 -> 256 -> 128 -> 7)",
+        "cnn_architecture": "Improved 4-Block CNN with Flip TTA & Label Smoothing",
+        "preprocessing": "OpenCV Haar Face Crop + CLAHE (clip=2.0) + 64x64 Grayscale [0, 1]",
         "metrics_available": bool(metrics_data),
         "history_available": bool(history_data),
         "emotion_classes":   EMOTION_CLASSES,
